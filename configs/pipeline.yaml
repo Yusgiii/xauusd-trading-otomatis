@@ -1,0 +1,295 @@
+# XAUUSD M15 — prediksi arah on-demand (jangka pendek).
+
+project:
+
+  symbol: XAUUSD
+
+  timeframe: M15
+
+  horizon_bars: 12         # 12 bar M15 = 3 jam (lebih realistis untuk TP/SL touch)
+
+  training_label_stride: 1   # Tidak perlu subsample (label sudah non-overlap)
+
+  decision_bar: close
+
+  daily_anchor:
+    enabled: false
+    wib_open_hour: 0
+
+
+
+risk:
+
+  flat_return_threshold: 0.0011   # Diturunkan ~27% untuk kurangi dominasi label FLAT
+
+  point_size: 0.01
+
+  spread_cap_quantile: 0.99
+
+  telegram_token: "YOUR_TELEGRAM_BOT_TOKEN"
+
+  telegram_chat_id: "YOUR_TELEGRAM_CHAT_ID"
+
+  gemini_api_key: "YOUR_GEMINI_API_KEY"
+
+  newsapi_key: "YOUR_NEWSAPI_KEY"
+
+
+
+stage_1:
+
+  input_csv: data/xauusd_m15.csv
+
+  auto_fetch_mt5: true
+
+  mt5_fetch_bars: 200000     # copy_rates_from_pos + range tahun 1990→sekarang (maks. broker)
+
+  timezone: UTC
+
+  max_gap_minutes: 60          # Gap > 1 jam dianggap putus untuk M15
+
+  forward_fill_max_bars: 2
+
+  drop_extra_csv_columns: true
+
+  exclude_weekend_bars: true
+
+
+
+stage_2:
+
+  max_spread_zscore: 4.0
+
+  wick_anomaly_ratio: 6.0
+  atr_window: 14
+  risk_labeling:
+    # Label tambahan untuk evaluasi kualitas setup (tidak dipakai sebagai target utama).
+    sl_atr_multiplier: 1.5
+    tp_rr: 1.8
+
+
+
+stage_3:
+
+  vol_window: 60
+
+  ema_fast: 20
+
+  ema_slow: 50
+
+  zscore_window: 60
+
+  atr_window: 14
+
+  rsi_window: 14
+
+  hurst_window: 32
+
+
+
+stage_4:
+
+  n_splits: 5
+
+  embargo_bars: 1
+
+  regime_vol_window: 24
+
+  min_train_rows: 1000
+
+  min_test_rows: 100
+
+
+
+stage_5:
+
+  model_type: xgboost
+
+  n_trials: 48
+
+  optuna_recent_fold_weight: 0.3
+
+  n_cv_splits: 5
+
+  early_stopping_rounds: 60
+
+  optuna_max_rows: 200000
+
+  optuna_data_frac: 1.0
+  optuna_sim_conf_up: 0.52
+  optuna_sim_conf_down: 0.52
+  optuna_sim_abstain_tau: 0.42
+  optuna_min_trades_frac: 0.05
+  optuna_weight_expectancy: 0.35
+  optuna_weight_sharpe: 0.20
+  optuna_weight_prec_dir: 0.25
+  optuna_weight_f1_dir: 0.20
+
+  class_balance: inverse
+  dynamic_minority_boost_enabled: true
+  dynamic_minority_boost_factor: 1.25
+
+  final_holdout_frac: 0.15
+  min_signal_rate_target: 0.25
+  threshold_relax_step: 0.03
+
+  final_n_estimators: 1200
+  train_binary_models_enabled: true
+
+  min_train_frac_flat: 0.01
+
+  min_train_frac_up: 0.01
+
+  min_train_frac_down: 0.01
+
+
+
+stage_6:
+
+  use_binary_models: false
+  use_flat_abstain_search: true
+
+  abstain_search_val_frac: 0.15
+
+  abstain_val_min_rows: 80
+
+  abstain_flat_rate_tolerance: 0.05
+  abstain_score_accuracy_weight: 0.45
+  abstain_score_balanced_accuracy_weight: 0.55
+  min_signal_rate_target: 0.25
+  max_signal_rate_target: 0.50
+  threshold_relax_step: 0.03
+
+
+
+stage_9:
+  mt5_terminal_path: "C:/Program Files/mt1/terminal64.exe"
+  bar_analysis_delay_seconds: 120   # tunggu 2 menit setelah bar M15 baru sebelum analisa
+  auto_retrain:
+    enabled: true
+    min_interval_hours: 6.0
+    trigger_on_high_drift: true
+    trigger_on_critical_drift: true
+    notify_telegram: true
+    timeout_seconds: 3600
+  min_rr_to_send: 1.5
+  max_sl_pips: 150.0
+  lot_sizing:
+    enabled: true
+    base_lot: 0.01
+    high_confidence_threshold: 0.70
+    medium_confidence_threshold: 0.55
+    low_confidence_threshold: 0.45
+    high_lot_multiplier: 1.5
+    medium_lot_multiplier: 1.0
+    low_lot_multiplier: 0.7
+    max_lot_multiplier_cap: 1.5
+    sentiment_adjustment_enabled: true
+    sentiment_reduce_factor: 0.8
+    sentiment_boost_factor: 1.1
+  mt5_bars: 300
+
+  news_max_headlines: 8
+
+  news_source: both
+
+  newsapi_query: '("XAUUSD" OR "gold price" OR "spot gold" OR bullion OR "US dollar" OR "Fed rate" OR "FOMC")'
+
+  live_trade_log_path: logs/live_trade_log.csv
+  prediction_log:
+
+    enabled: true
+
+    csv_path: logs/prediction_log.csv
+
+  newsapi_language: en
+
+  news_rss_urls:
+
+    - https://www.forexfactory.com/ff_news.xml
+
+  gemini_model: gemini-2.5-flash
+
+  gemini:
+    sentiment_scale: 2
+    min_confidence_to_use: 0.3
+    max_retries: 3
+    retry_delay_seconds: 5.0
+    cache_max_age_minutes: 60
+    cache_file: logs/gemini_cache.json
+
+  gemini_fallback_models:
+
+    - gemini-flash-latest
+
+    - gemini-2.0-flash
+
+  consensus:
+
+    weak_lean_min: 0.05
+
+    moderate_combined: 0.12
+
+    strong_combined: 0.70
+
+    strong_class_prob: 0.38
+
+  trade_plan:
+    # SL = sl_atr_multiplier * ATR(atr_window), TP = tp_rr * SL
+    sl_atr_multiplier: 1.5
+    tp_rr_base: 1.8
+    tp_rr_strong: 2.0
+    min_rr_floor: 1.5
+    min_confidence: 0.55
+    per_symbol:
+      XAUUSD:
+        sl_atr_multiplier: 1.5
+        tp_rr_base: 1.8
+        tp_rr_strong: 2.0
+        min_confidence: 0.55
+      EURUSD:
+        sl_atr_multiplier: 1.4
+        tp_rr_base: 2.3
+        tp_rr_strong: 2.6
+        min_confidence: 0.56
+      BTCUSD:
+        sl_atr_multiplier: 2.2
+        tp_rr_base: 2.7
+        tp_rr_strong: 3.1
+        min_confidence: 0.60
+  execution:
+    enabled: true
+    lot: 0.01
+    deviation_points: 30
+    magic: 950001
+    confirm_timeout_sec: 120
+  moment_alert:
+    enabled: true
+    poll_seconds: 60
+    touch_check_bars: 8
+    min_confidence: 0.60
+    send_no_trade: true
+    no_trade_min_interval_minutes: 0   # 0 = kirim setiap bar M15
+    recommendations:
+      - STRONG BUY
+      - STRONG SELL
+      - BUY
+      - SELL
+
+  bot:
+
+    poll_timeout_sec: 30
+
+    command_cooldown_sec: 45
+
+    allowed_chat_ids: []
+
+
+
+experiment:
+
+  output_root: artifacts
+
+  reports_root: reports
+
+

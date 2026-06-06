@@ -1,0 +1,35 @@
+# Secrets — JANGAN commit
+configs/pipeline.secrets.yaml
+.env
+.env.*
+*.pem
+*.key
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Runtime / data besar (regenerate lokal)
+logs/
+!logs/.gitkeep
+artifacts/
+data/
+reports/
+
+# Lock & cache
+logs/*.lock
+logs/*.json
+!logs/.gitkeep
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Jupyter
+.ipynb_checkpoints/
